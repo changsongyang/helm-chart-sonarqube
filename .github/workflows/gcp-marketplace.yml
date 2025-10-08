@@ -1,9 +1,11 @@
 name: GCP Marketplace
 on:
+  schedule:
+    - cron: '0 0 * * *'
   push:
-    branches:
-      - master
-      - release/*
+    # branches:
+    #   - master
+    #   - release/*
   workflow_dispatch:
     inputs:
       trigger:
@@ -29,7 +31,6 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    if: ${{ github.event.inputs.trigger == 'PUSH_STAGING_DEPLOYER' || github.event.inputs.trigger == 'PUSH_PROD_DEPLOYER' || (github.ref_name == 'master' && github.event_name == 'push') }}
     env:
       GCLOUD_REGISTRY: gcr.io/sonarqube-marketplace-provider
       GCLOUD_PRODUCT_NAME: sonarqube-dce-staging
@@ -76,11 +77,10 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    if: ${{ github.event.inputs.trigger == 'PUSH_STAGING_DEPLOYER' || github.event.inputs.trigger == 'PUSH_PROD_DEPLOYER' || github.event_name == 'push' }}
     env:
       BASE_FOLDER: "/home/runner/.gcp/cache"
-      KUBE_CONFIG: "/tmp/kubeconfig"
-      KUBECONFIG: "/tmp/kubeconfig"
+      # KUBE_CONFIG: "/tmp/kubeconfig"
+      # KUBECONFIG: "/tmp/kubeconfig"
       HOME: "/tmp"
       GCLOUD_CLI_VERSION: 495.0.0
       MPDEV_VERSION: 0.12.4
@@ -93,11 +93,11 @@ jobs:
       - uses: jdx/mise-action@bfb9fa0b029db830a8c570757cee683df207a6c5 # v2.4.0
         with:
           version: 2025.7.12
-      - name: Cache GCP tools
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
-        with:
-          path: ${{ env.BASE_FOLDER }}
-          key: gcp-tools-${{ env.GCLOUD_CLI_VERSION }}-${{ env.MPDEV_VERSION }}
+      # - name: Cache GCP tools
+      #   uses: SonarSource/ci-github-actions/cache@v1
+      #   with:
+      #     path: ${{ env.BASE_FOLDER }}
+      #     key: gcp-tools-${{ env.GCLOUD_CLI_VERSION }}-${{ env.MPDEV_VERSION }}
       - name: Setup GCP tools
         run: ./.github/scripts/setup.sh
       - id: secrets
@@ -113,9 +113,7 @@ jobs:
           gcloud auth activate-service-account cirrusciservice@sonarqube-marketplace-provider.iam.gserviceaccount.com --key-file /tmp/key.json --project=sonarqube-marketplace-provider
           gcloud auth configure-docker gcr.io --quiet
           gcloud container clusters get-credentials sonarqube-marketplace-staging-standard --zone=europe-west1-b --project=sonarqube-marketplace-provider
-      - name: Verify deployment
-        run: |
-          kubectl get pods
+          kubectl get pods -A
           mpdev verify --deployer=$GCLOUD_REGISTRY/$GCLOUD_PRODUCT_NAME/deployer:$GCLOUD_TAG --wait_timeout=1200 --parameters='{"name":"${GCLOUD_PRODUCT_NAME}-github-test", "namespace":"test-github","ApplicationNodes.jwtSecret":"dZ0EB0KxnF++nr5+4vfTCaun/eWbv6gOoXodiAMqcFo=", "postgresql.enabled":true, "jdbcOverwrite.enabled":false }'
 
   release-gcp-prod-app:
@@ -125,7 +123,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    if: ${{ github.event.inputs.trigger == 'PUSH_PROD_DEPLOYER' }}
+    if: ${{ github.event.inputs.trigger == 'PUSH_PROD_DEPLOYER' || github.event_name == 'push' || github.event_name == 'schedule' }}
     env:
       GCLOUD_REGISTRY: gcr.io/sonarsource-public
       GCLOUD_PRODUCT_NAME: official-sonarqube-data-center-edition
