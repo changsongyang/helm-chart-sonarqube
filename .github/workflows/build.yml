@@ -35,11 +35,11 @@ jobs:
         uses: helm/chart-testing-action@0d28d3144d3a25ea2cc349d6e59901c4ff469b3b
       - name: Build chart dependencies
         run: |
-          ./.cirrus/build_chart_dependencies.sh charts/sonarqube
-          ./.cirrus/build_chart_dependencies.sh charts/sonarqube-dce
+          ./.github/scripts/build_chart_dependencies.sh charts/sonarqube
+          ./.github/scripts/build_chart_dependencies.sh charts/sonarqube-dce
       - name: Generate Helm fixtures
         run: |
-          ./.cirrus/generate_helm_fixtures.sh
+          ./.github/scripts/generate_helm_fixtures.sh
           git diff --exit-code
 
   chart-schema-test:
@@ -60,10 +60,10 @@ jobs:
           pip install yamllint==1.37.1 yamale==6.0.0
       - name: Build chart dependencies
         run: |
-          ./.cirrus/build_chart_dependencies.sh charts/sonarqube
-          ./.cirrus/build_chart_dependencies.sh charts/sonarqube-dce
+          ./.github/scripts/build_chart_dependencies.sh charts/sonarqube
+          ./.github/scripts/build_chart_dependencies.sh charts/sonarqube-dce
       - name: Run schema tests
-        run: ./.cirrus/schema_test.sh
+        run: ./.github/scripts/schema_test.sh
 
 
   static-compatibility-test:
@@ -83,9 +83,9 @@ jobs:
         with:
           version: 2025.7.12
       - name: Build chart dependencies
-        run: ./.cirrus/build_chart_dependencies.sh charts/${{ matrix.chart }}
+        run: ./.github/scripts/build_chart_dependencies.sh charts/${{ matrix.chart }}
       - name: Run unit helm compatibility test
-        run: ./.cirrus/unit_helm_compatibility_test.sh ${{ matrix.chart }}
+        run: ./.github/scripts/unit_helm_compatibility_test.sh ${{ matrix.chart }}
 
   # Shared steps for OpenShift chart verification
   openshift-tests:
@@ -141,7 +141,7 @@ jobs:
           ROSA_OPENSHIFT_URL: ${{ fromJSON(steps.secrets.outputs.vault).ROSA_OPENSHIFT_URL }}
           ROSA_OPENSHIFT_USER: ${{ fromJSON(steps.secrets.outputs.vault).ROSA_OPENSHIFT_USER }}
           ROSA_OPENSHIFT_PASSWORD: ${{ fromJSON(steps.secrets.outputs.vault).ROSA_OPENSHIFT_PASSWORD }}
-        run: ./.cirrus/openshift_auth.sh
+        run: ./.github/scripts/openshift_auth.sh
       - name: Setup OpenShift project
         env:
           DOCKER_USERNAME: ${{ fromJSON(steps.secrets.outputs.vault).DOCKER_USERNAME }}
@@ -149,7 +149,7 @@ jobs:
         run: |
           oc new-project ${{ matrix.verifying_chart }} --display-name="Test Project" --description="This is a test project for testing ${{ matrix.verifying_chart}} from GitHub Actions" || oc project ${{ matrix.verifying_chart }}
           kubectl create secret docker-registry pullsecret --namespace ${{ matrix.verifying_chart }} --docker-username=${DOCKER_USERNAME} --docker-password=${DOCKER_PASSWORD} --dry-run=client -o yaml | kubectl apply -f -
-          ./.cirrus/build_chart_dependencies.sh charts/${{ matrix.verifying_chart }}
+          ./.github/scripts/build_chart_dependencies.sh charts/${{ matrix.verifying_chart }}
           chart-verifier version
       - name: Run chart verification
         run: |
@@ -162,7 +162,7 @@ jobs:
           name: ${{ matrix.report_name}}
           path: report-*/report.yaml
       - name: Check violations
-        run: cat "report-${{ matrix.verifying_chart}}/report.yaml" | ./.cirrus/verify_openshift.sh
+        run: cat "report-${{ matrix.verifying_chart}}/report.yaml" | ./.github/scripts/verify_openshift.sh
       - name: Cleanup
         if: always()
         run: oc delete project ${{ matrix.verifying_chart }} || true
@@ -280,8 +280,8 @@ jobs:
           SONARSOURCE_SIGN_KEY_ID: ${{ fromJSON(steps.secrets.outputs.vault).SONARSOURCE_SIGN_KEY_ID }}
           SONARSOURCE_SIGN_KEY_PASSPHRASE: ${{ fromJSON(steps.secrets.outputs.vault).SONARSOURCE_SIGN_KEY_PASSPHRASE }}
         run: |
-          ./.cirrus/package.sh ${{ matrix.chart }}
-          ./.cirrus/sign_chart.sh ${{ matrix.chart }}
+          ./.github/scripts/package.sh ${{ matrix.chart }}
+          ./.github/scripts/sign_chart.sh ${{ matrix.chart }}
       - name: Upload SonarQube chart artifact
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
@@ -326,7 +326,7 @@ jobs:
           ARTIFACTORY_URL: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_URL }}
           ARTIFACTORY_ACCESS_TOKEN: ${{ fromJSON(steps.secrets.outputs.vault).ARTIFACTORY_ACCESS_TOKEN }}
         run: |
-          ./.cirrus/upload_chart.sh ${{ matrix.chart }}
+          ./.github/scripts/upload_chart.sh ${{ matrix.chart }}
 
   trigger-release:
     needs: [sonarqube-push-to-repox]
@@ -379,4 +379,4 @@ jobs:
         if: failure()
         env:
           SLACK_TOKEN: ${{ fromJSON(steps.secrets.outputs.vault).SLACK_TOKEN }}
-        run: ./.cirrus/slack-notification.sh
+        run: ./.github/scripts/slack-notification.sh

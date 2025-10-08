@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - master
+      - release/*
   workflow_dispatch:
     inputs:
       trigger:
@@ -16,7 +17,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ !(github.ref_name == 'main' || startsWith(github.ref_name, 'release/')) }}
+  cancel-in-progress: ${{ !(github.ref_name == 'master' || startsWith(github.ref_name, 'release/')) }}
 
 env:
   GCLOUD_TAG: 2025.4.0
@@ -53,7 +54,7 @@ jobs:
           export DOCKER_GCLOUD_PASSWORD=$(echo ${DOCKER_GCLOUD_SA_KEY} | base64 -d)
           docker login -u _json_key -p "$DOCKER_GCLOUD_PASSWORD" https://${GCLOUD_REGISTRY}
       - name: Build chart dependencies
-        run: ./.cirrus/build_chart_dependencies.sh charts/sonarqube-dce
+        run: ./.github/scripts/build_chart_dependencies.sh charts/sonarqube-dce
       - name: Build and push Docker image
         env:
           DOCKER_GCLOUD_SA_KEY: ${{ fromJSON(steps.secrets.outputs.vault).DOCKER_GCLOUD_SA_KEY }}
@@ -98,7 +99,7 @@ jobs:
           path: ${{ env.BASE_FOLDER }}
           key: gcp-tools-${{ env.GCLOUD_CLI_VERSION }}-${{ env.MPDEV_VERSION }}
       - name: Setup GCP tools
-        run: ./.cirrus/setup.sh
+        run: ./.github/scripts/setup.sh
       - id: secrets
         uses: SonarSource/vault-action-wrapper@3.0.2
         with:
@@ -149,7 +150,7 @@ jobs:
           export DOCKER_GCLOUD_PASSWORD=$(echo ${DOCKER_GCLOUD_SA_KEY} | base64 -d)
           docker login -u _json_key -p "$DOCKER_GCLOUD_PASSWORD" https://${GCLOUD_REGISTRY}
       - name: Build chart dependencies
-        run: ./.cirrus/build_chart_dependencies.sh charts/sonarqube-dce
+        run: ./.github/scripts/build_chart_dependencies.sh charts/sonarqube-dce
       - name: Build and push Docker image
         env:
           DOCKER_GCLOUD_SA_KEY: ${{ fromJSON(steps.secrets.outputs.vault).DOCKER_GCLOUD_SA_KEY }}
